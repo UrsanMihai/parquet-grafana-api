@@ -1,6 +1,6 @@
 package main
 
-import "parquet-grafana-api/cmd"
+import "github.com/ursanmihai/parquet-grafana-api/cmd"
 
 func main() {
 	cmd.Execute()

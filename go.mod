@@ -1,4 +1,4 @@
-module parquet-grafana-api
+module github.com/ursanmihai/parquet-grafana-api
 
 go 1.26.0
 
