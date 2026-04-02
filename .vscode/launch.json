@@ -10,7 +10,14 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}",
-      "args": ["--parquet_path", "192.168.0.102.parquet", "--port", "3002"]
+      "args": [
+        "--parquet_paths",
+        "192.168.0.102.parquet",
+        "--temp_paths",
+        "stream_samples",
+        "--Port",
+        "3002"
+      ]
     }
   ]
 }

@@ -10,12 +10,16 @@ import (
 
 func exec(cmd *cobra.Command, args []string) {
 	// Check the CLI flags.
-	parquet_path, _ := cmd.Flags().GetString("parquet_path")
-	port, _ := cmd.Flags().GetString("port")
+	host, _ := cmd.Flags().GetString("Host")
+	port, _ := cmd.Flags().GetString("Port")
+	parquet_sources, _ := cmd.Flags().GetStringSlice("parquet_paths")
+	temp_sources, _ := cmd.Flags().GetStringSlice("temp_paths")
 
 	cfg := types.APIConfig{
-		Port:       port,
-		DataSource: parquet_path,
+		Port:            port,
+		Host:            host,
+		DataSources:     parquet_sources,
+		TempDataSources: temp_sources,
 	}
 	cfg.AreValid()
 	api.Main(cfg)
@@ -28,8 +32,10 @@ var cmd = &cobra.Command{
 }
 
 func Execute() {
-	cmd.Flags().StringP("parquet_path", "f", "", "Path to the Parquet file")
-	cmd.Flags().StringP("port", "p", "3000", "Port to run the server on")
+	cmd.Flags().StringP("Host", "H", "localhost", "Host to run the server on.")
+	cmd.Flags().StringP("Port", "P", "3000", "Port to run the server on.")
+	cmd.Flags().StringSliceP("parquet_paths", "f", []string{}, "Paths to the parquet data sources.")
+	cmd.Flags().StringSliceP("temp_paths", "t", []string{}, "Paths to the temporary data sources. (Optional)")
 	if err := cmd.Execute(); err != nil {
 		log.Errorf("Failed to execute command: %v", err)
 	}
