@@ -22,9 +22,13 @@ parquet-grafana-api.exe server [flags]
 
 Flags:
 
+Flags:
+
+- -H, --Host string Host to run the server on (default "localhost")
+- -P, --Port string Port to run the server on (default "3000")
 - -h, --help help for server
-- -f, --parquet_path string Path to the Parquet file
-- -p, --port string Port to run the server on (default "3000")
+- -f, --parquet_paths strings Path to the parquet data sources.
+- -t, --temp_paths strings Path to the temporary data sources. (Optional)
 
 #### How to consume the API:
 

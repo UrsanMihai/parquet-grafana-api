@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -39,8 +40,32 @@ func GetMultipleColumns() fiber.Handler {
 		// Get the singleton instance of the DB driver connection.
 		repository := database.GetInstance()
 		db := repository.DB
-		// Execute the query to read from the Parquet file and filter based on the provided parameters.
-		rows, err := db.Query(fmt.Sprintf("SELECT %s, CAST(%s * %E as UBIGINT) as time FROM read_parquet('%s') WHERE time BETWEEN %d AND %d AND device_alias = '%s';", column, timestamp_column, ts_factor, repository.DataSource, fromMs, toMs, deviceAlias))
+
+		// Create the datasources strings for the query.
+		dataSourceBuilder := strings.Builder{}
+		tempDataSourceBuilder := strings.Builder{}
+
+		// Add the main data sources to the query.
+		for _, path := range repository.DataSources {
+			dataSourceBuilder.WriteString(fmt.Sprintf("'%s', ", path))
+		}
+
+		// Add the temporary data sources to the query if they exist.
+		for _, tempPath := range repository.TempDataSources {
+			tempDataSourceBuilder.WriteString(fmt.Sprintf("'%s/*.parquet', ", tempPath))
+		}
+
+		// Create the query string.
+		queryBuilder := strings.Builder{}
+		queryBuilder.WriteString(fmt.Sprintf("SELECT %s, CAST(%s * %E as UBIGINT) as time FROM read_parquet([%s]) WHERE time BETWEEN %d AND %d AND device_alias = '%s'", column, timestamp_column, ts_factor, dataSourceBuilder.String(), fromMs, toMs, deviceAlias))
+		if len(repository.TempDataSources) > 0 {
+			queryBuilder.WriteString(" UNION ")
+			queryBuilder.WriteString(fmt.Sprintf("SELECT %s, CAST(%s * %E as UBIGINT) as time FROM read_parquet([%s]) WHERE time BETWEEN %d AND %d AND device_alias = '%s';", column, timestamp_column, ts_factor, tempDataSourceBuilder.String(), fromMs, toMs, deviceAlias))
+		} else {
+			queryBuilder.WriteString(";")
+		}
+		// Execute the query to read from the data sources and filter based on the provided parameters.
+		rows, err := db.Query(queryBuilder.String())
 		if err != nil {
 			log.Errorf("Failed to execute query: %v", err)
 			return fiber.NewError(fiber.ErrInternalServerError.Code, "Failed to execute query!")
@@ -103,8 +128,32 @@ func GetSingleColumn() fiber.Handler {
 		// Get the singleton instance of the DB driver connection.
 		repository := database.GetInstance()
 		db := repository.DB
+
+		// Create the datasources strings for the query.
+		dataSourceBuilder := strings.Builder{}
+		tempDataSourceBuilder := strings.Builder{}
+
+		// Add the main data sources to the query.
+		for _, path := range repository.DataSources {
+			dataSourceBuilder.WriteString(fmt.Sprintf("'%s', ", path))
+		}
+
+		// Add the temporary data sources to the query if they exist.
+		for _, tempPath := range repository.TempDataSources {
+			tempDataSourceBuilder.WriteString(fmt.Sprintf("'%s/*.parquet', ", tempPath))
+		}
+
+		// Create the query string.
+		queryBuilder := strings.Builder{}
+		queryBuilder.WriteString(fmt.Sprintf("SELECT %s, CAST(%s * %E as UBIGINT) as time FROM read_parquet([%s]) WHERE time BETWEEN %d AND %d AND device_alias = '%s'", column, timestamp_column, ts_factor, dataSourceBuilder.String(), fromMs, toMs, deviceAlias))
+		if len(repository.TempDataSources) > 0 {
+			queryBuilder.WriteString(" UNION ")
+			queryBuilder.WriteString(fmt.Sprintf("SELECT %s, CAST(%s * %E as UBIGINT) as time FROM read_parquet([%s]) WHERE time BETWEEN %d AND %d AND device_alias = '%s'", column, timestamp_column, ts_factor, tempDataSourceBuilder.String(), fromMs, toMs, deviceAlias))
+		} else {
+			queryBuilder.WriteString(";")
+		}
 		// Execute the query to read from the Parquet file and filter based on the provided parameters.
-		rows, err := db.Query(fmt.Sprintf("SELECT %s, CAST(%s * %E as UBIGINT) as time FROM read_parquet('%s') WHERE time BETWEEN %d AND %d AND device_alias = '%s';", column, timestamp_column, ts_factor, repository.DataSource, fromMs, toMs, deviceAlias))
+		rows, err := db.Query(queryBuilder.String())
 		if err != nil {
 			log.Errorf("Failed to execute query: %v", err)
 			return fiber.NewError(fiber.ErrInternalServerError.Code, "Failed to execute query!")

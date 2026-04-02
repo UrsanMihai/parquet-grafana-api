@@ -11,7 +11,7 @@ import (
 func Main(config apiTypes.APIConfig) {
 	app := fiber.New()
 
-	repo, err := database.Init("duckdb", config.DataSource)
+	repo, err := database.Init("duckdb", config.DataSources, config.TempDataSources)
 	if err != nil {
 		log.Error("Error while oppening database driver!")
 		return
@@ -19,5 +19,5 @@ func Main(config apiTypes.APIConfig) {
 	defer repo.Close()
 
 	routes.AddRoutes(app)
-	app.Listen(":" + config.Port)
+	app.Listen(config.Host + ":" + config.Port)
 }

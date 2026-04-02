@@ -8,14 +8,15 @@ import (
 )
 
 type repository struct {
-	DB         *sql.DB
-	DataSource string
+	DB              *sql.DB
+	DataSources     []string
+	TempDataSources []string
 }
 
 var instance *repository
 var poolOnce sync.Once
 
-func Init(driver string, dataSource string) (*repository, error) {
+func Init(driver string, dataSources []string, tempDataSources []string) (*repository, error) {
 	var db *sql.DB
 	var err error
 	poolOnce.Do(
@@ -28,8 +29,9 @@ func Init(driver string, dataSource string) (*repository, error) {
 		return nil, err
 	}
 	instance = &repository{
-		DB:         db,
-		DataSource: dataSource,
+		DB:              db,
+		DataSources:     dataSources,
+		TempDataSources: tempDataSources,
 	}
 
 	return instance, nil
