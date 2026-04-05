@@ -8,32 +8,24 @@ import (
 )
 
 type APIConfig struct {
-	DataSources     []string
-	TempDataSources []string
-	Host            string
-	Port            string
+	HiveParquetLocation   string
+	SimpleParquetLocation string
+	Host                  string
+	Port                  string
+	UseTemporalFilter     bool
 }
 
 func (cfg *APIConfig) AreValid() bool {
-	if len(cfg.DataSources) == 0 {
-		log.Error("Please provide at least one parquet data source --parquet_paths path1,path2,...")
+	_, err := os.Stat(cfg.HiveParquetLocation)
+	if cfg.HiveParquetLocation != "" && os.IsNotExist(err) {
+		log.Error(fmt.Sprintf("Please provide valid hive parquet parent directory. Invalid path: %s", cfg.HiveParquetLocation))
 		return false
-	} else {
-		for _, path := range cfg.DataSources {
-			_, err := os.Stat(path)
-			if path == "" && os.IsNotExist(err) {
-				log.Error(fmt.Sprintf("Please provide valid parquet data source paths. Invalid path: %s", path))
-				return false
-			}
-		}
 	}
 
-	for _, tempPath := range cfg.TempDataSources {
-		_, err := os.Stat(tempPath)
-		if tempPath == "" && os.IsNotExist(err) {
-			log.Error(fmt.Sprintf("Please provide valid temporary data source paths. Invalid path: %s", tempPath))
-			return false
-		}
+	_, err = os.Stat(cfg.SimpleParquetLocation)
+	if cfg.SimpleParquetLocation != "" && os.IsNotExist(err) {
+		log.Error(fmt.Sprintf("Please provide valid simple parquet parent directory. Invalid path: %s", cfg.SimpleParquetLocation))
+		return false
 	}
 
 	if cfg.Host == "" {

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/log"
@@ -26,46 +25,51 @@ func GetMultipleColumns() fiber.Handler {
 		}
 		ts_factor := utils.ToMS(timestamp_format)
 
-		fromMs, err := strconv.ParseInt(c.Query("from"), 10, 64)
+		fromTS, err := strconv.ParseInt(c.Query("from"), 10, 64)
 		if err != nil {
 			log.Errorf("Bad query param format, from timestamp! 0 will be used as a default value for from query param.")
-			fromMs = 0
+			fromTS = 0
 		}
-		toMs, err := strconv.ParseInt(c.Query("to"), 10, 64)
+		toTS, err := strconv.ParseInt(c.Query("to"), 10, 64)
 		if err != nil {
 			log.Errorf("Bad query param format, to timestamp! Current timestamp will be used as a default value for to query param.")
-			toMs = time.Now().UTC().UnixMilli()
+			toTS = utils.GetCurrentTS(timestamp_format)
 		}
 		deviceAlias := c.Query("device_alias")
 		// Get the singleton instance of the DB driver connection.
 		repository := database.GetInstance()
 		db := repository.DB
 
-		// Create the datasources strings for the query.
-		dataSourceBuilder := strings.Builder{}
-		tempDataSourceBuilder := strings.Builder{}
-
-		// Add the main data sources to the query.
-		for _, path := range repository.DataSources {
-			dataSourceBuilder.WriteString(fmt.Sprintf("'%s', ", path))
-		}
-
-		// Add the temporary data sources to the query if they exist.
-		for _, tempPath := range repository.TempDataSources {
-			tempDataSourceBuilder.WriteString(fmt.Sprintf("'%s/*.parquet', ", tempPath))
-		}
-
 		// Create the query string.
 		queryBuilder := strings.Builder{}
-		queryBuilder.WriteString(fmt.Sprintf("SELECT %s, CAST(%s * %E as UBIGINT) as time FROM read_parquet([%s]) WHERE time BETWEEN %d AND %d AND device_alias = '%s'", column, timestamp_column, ts_factor, dataSourceBuilder.String(), fromMs, toMs, deviceAlias))
-		if len(repository.TempDataSources) > 0 {
-			queryBuilder.WriteString(" UNION ")
-			queryBuilder.WriteString(fmt.Sprintf("SELECT %s, CAST(%s * %E as UBIGINT) as time FROM read_parquet([%s]) WHERE time BETWEEN %d AND %d AND device_alias = '%s';", column, timestamp_column, ts_factor, tempDataSourceBuilder.String(), fromMs, toMs, deviceAlias))
+		if repository.HiveParquetSource != "" {
+			hiveDataSets := ""
+			switch repository.UseTemporalFilter {
+			case true:
+				hiveDataSets, _ = utils.GetHiveDataSetsStr(repository.HiveParquetSource, fromTS)
+				break
+			case false:
+				hiveDataSets, _ = utils.GetHiveDataSetsStr(repository.HiveParquetSource)
+				break
+			}
+
+			if hiveDataSets != "" {
+				queryBuilder.WriteString(fmt.Sprintf("SELECT %s, CAST(%s * %E as UBIGINT) as time FROM read_parquet([%s]) WHERE %s BETWEEN %d AND %d AND device_alias = '%s'", column, timestamp_column, ts_factor, hiveDataSets, timestamp_column, fromTS, toTS, deviceAlias))
+			}
+		}
+
+		if repository.SimpleParquetSource != "" {
+			if queryBuilder.Len() != 0 {
+				queryBuilder.WriteString(" UNION ")
+			}
+			queryBuilder.WriteString(fmt.Sprintf("SELECT %s, CAST(%s * %E as UBIGINT) as time FROM read_parquet(['%s']) WHERE %s BETWEEN %d AND %d AND device_alias = '%s';", column, timestamp_column, ts_factor, repository.SimpleParquetSource+"/*.parquet", timestamp_column, fromTS, toTS, deviceAlias))
 		} else {
 			queryBuilder.WriteString(";")
 		}
 		// Execute the query to read from the data sources and filter based on the provided parameters.
-		rows, err := db.Query(queryBuilder.String())
+		query := queryBuilder.String()
+		log.Infof("Executing query: %s", query)
+		rows, err := db.Query(query)
 		if err != nil {
 			log.Errorf("Failed to execute query: %v", err)
 			return fiber.NewError(fiber.ErrInternalServerError.Code, "Failed to execute query!")
@@ -114,41 +118,43 @@ func GetSingleColumn() fiber.Handler {
 		}
 		ts_factor := utils.ToMS(timestamp_format)
 
-		fromMs, err := strconv.ParseInt(c.Query("from"), 10, 64)
+		fromTS, err := strconv.ParseInt(c.Query("from"), 10, 64)
 		if err != nil {
 			log.Errorf("Bad query param format, from timestamp! 0 will be used as a default value for from query param.")
-			fromMs = 0
+			fromTS = 0
 		}
-		toMs, err := strconv.ParseInt(c.Query("to"), 10, 64)
+		toTS, err := strconv.ParseInt(c.Query("to"), 10, 64)
 		if err != nil {
 			log.Errorf("Bad query param format, to timestamp! Current timestamp will be used as a default value for to query param.")
-			toMs = time.Now().UTC().UnixMilli()
+			toTS = utils.GetCurrentTS(timestamp_format)
 		}
 		deviceAlias := c.Query("device_alias")
 		// Get the singleton instance of the DB driver connection.
 		repository := database.GetInstance()
 		db := repository.DB
 
-		// Create the datasources strings for the query.
-		dataSourceBuilder := strings.Builder{}
-		tempDataSourceBuilder := strings.Builder{}
-
-		// Add the main data sources to the query.
-		for _, path := range repository.DataSources {
-			dataSourceBuilder.WriteString(fmt.Sprintf("'%s', ", path))
-		}
-
-		// Add the temporary data sources to the query if they exist.
-		for _, tempPath := range repository.TempDataSources {
-			tempDataSourceBuilder.WriteString(fmt.Sprintf("'%s/*.parquet', ", tempPath))
-		}
-
 		// Create the query string.
 		queryBuilder := strings.Builder{}
-		queryBuilder.WriteString(fmt.Sprintf("SELECT %s, CAST(%s * %E as UBIGINT) as time FROM read_parquet([%s]) WHERE time BETWEEN %d AND %d AND device_alias = '%s'", column, timestamp_column, ts_factor, dataSourceBuilder.String(), fromMs, toMs, deviceAlias))
-		if len(repository.TempDataSources) > 0 {
-			queryBuilder.WriteString(" UNION ")
-			queryBuilder.WriteString(fmt.Sprintf("SELECT %s, CAST(%s * %E as UBIGINT) as time FROM read_parquet([%s]) WHERE time BETWEEN %d AND %d AND device_alias = '%s'", column, timestamp_column, ts_factor, tempDataSourceBuilder.String(), fromMs, toMs, deviceAlias))
+		if repository.HiveParquetSource != "" {
+			hiveDataSets := ""
+			switch repository.UseTemporalFilter {
+			case true:
+				hiveDataSets, _ = utils.GetHiveDataSetsStr(repository.HiveParquetSource, fromTS)
+				break
+			case false:
+				hiveDataSets, _ = utils.GetHiveDataSetsStr(repository.HiveParquetSource)
+				break
+			}
+
+			if hiveDataSets != "" {
+				queryBuilder.WriteString(fmt.Sprintf("SELECT %s, CAST(%s * %E as UBIGINT) as time FROM read_parquet([%s]) WHERE %s BETWEEN %d AND %d AND device_alias = '%s'", column, timestamp_column, ts_factor, hiveDataSets, timestamp_column, fromTS, toTS, deviceAlias))
+			}
+		}
+		if repository.SimpleParquetSource != "" {
+			if queryBuilder.Len() != 0 {
+				queryBuilder.WriteString(" UNION ")
+			}
+			queryBuilder.WriteString(fmt.Sprintf("SELECT %s, CAST(%s * %E as UBIGINT) as time FROM read_parquet(['%s']) WHERE %s BETWEEN %d AND %d AND device_alias = '%s'", column, timestamp_column, ts_factor, repository.SimpleParquetSource+"/*.parquet", timestamp_column, fromTS, toTS, deviceAlias))
 		} else {
 			queryBuilder.WriteString(";")
 		}

@@ -11,12 +11,13 @@
       "mode": "auto",
       "program": "${fileDirname}",
       "args": [
-        "--parquet_paths",
-        "192.168.0.102.parquet",
-        "--temp_paths",
+        "--hive_parquet_location",
+        "E:\\hive_db_test",
+        "--simple_parquet_location",
         "stream_samples",
         "--Port",
-        "3002"
+        "3002",
+        "-t",
       ]
     }
   ]

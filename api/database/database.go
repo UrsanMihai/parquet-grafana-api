@@ -5,18 +5,20 @@ import (
 	"sync"
 
 	"github.com/gofiber/fiber/v3/log"
+	apiTypes "github.com/ursanmihai/parquet-grafana-api/api/types"
 )
 
 type repository struct {
-	DB              *sql.DB
-	DataSources     []string
-	TempDataSources []string
+	DB                  *sql.DB
+	HiveParquetSource   string
+	SimpleParquetSource string
+	UseTemporalFilter   bool
 }
 
 var instance *repository
 var poolOnce sync.Once
 
-func Init(driver string, dataSources []string, tempDataSources []string) (*repository, error) {
+func Init(driver string, apiConfig *apiTypes.APIConfig) (*repository, error) {
 	var db *sql.DB
 	var err error
 	poolOnce.Do(
@@ -28,10 +30,12 @@ func Init(driver string, dataSources []string, tempDataSources []string) (*repos
 		log.Errorf("Error while connecting to the DB")
 		return nil, err
 	}
+
 	instance = &repository{
-		DB:              db,
-		DataSources:     dataSources,
-		TempDataSources: tempDataSources,
+		DB:                  db,
+		HiveParquetSource:   apiConfig.HiveParquetLocation,
+		SimpleParquetSource: apiConfig.SimpleParquetLocation,
+		UseTemporalFilter:   apiConfig.UseTemporalFilter,
 	}
 
 	return instance, nil
