@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -58,7 +59,10 @@ func GetMultipleColumns() fiber.Handler {
 			}
 		}
 
-		if repository.SimpleParquetSource != "" {
+		// Check if the simple parquet source is provided and if there are any parquet files in the provided directory.
+		parquetFiles, _ := filepath.Glob(filepath.Join(repository.SimpleParquetSource, "*.parquet"))
+
+		if repository.SimpleParquetSource != "" && len(parquetFiles) > 0 {
 			if queryBuilder.Len() != 0 {
 				queryBuilder.WriteString(" UNION ")
 			}
@@ -150,7 +154,10 @@ func GetSingleColumn() fiber.Handler {
 				queryBuilder.WriteString(fmt.Sprintf("SELECT %s, CAST(%s * %E as UBIGINT) as time FROM read_parquet([%s]) WHERE %s BETWEEN %d AND %d AND device_alias = '%s'", column, timestamp_column, ts_factor, hiveDataSets, timestamp_column, fromTS, toTS, deviceAlias))
 			}
 		}
-		if repository.SimpleParquetSource != "" {
+
+		parquetFiles, _ := filepath.Glob(filepath.Join(repository.SimpleParquetSource, "*.parquet"))
+
+		if repository.SimpleParquetSource != "" && len(parquetFiles) > 0 {
 			if queryBuilder.Len() != 0 {
 				queryBuilder.WriteString(" UNION ")
 			}
