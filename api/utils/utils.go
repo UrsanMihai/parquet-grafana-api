@@ -1,6 +1,13 @@
 package utils
 
-import "time"
+import (
+	"fmt"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+)
 
 func ToMS(fmt string) float32 {
 	var factor float32
@@ -36,4 +43,38 @@ func GetCurrentTS(fmt string) int64 {
 	}
 
 	return timestamp
+}
+
+func getHiveDataSetsStrDefault(location string) (string, error) {
+	files, err := filepath.Glob(filepath.Join(location, "*.parquet"))
+	datasets := strings.Builder{}
+	for _, dataset := range files {
+		datasets.WriteString(fmt.Sprintf("'%s',", dataset))
+	}
+	return datasets.String(), err
+}
+
+func getHiveDataSetsStrFilter(location string, timestamp int64) (string, error) {
+	files, err := filepath.Glob(filepath.Join(location, "*.parquet"))
+	datasets := strings.Builder{}
+	re := regexp.MustCompile(`(\d+).parquet$`)
+	for _, dataset := range files {
+		dataset_last_timestamp := re.FindStringSubmatch(dataset)
+		if dataset_last_timestamp != nil {
+			dataset_last_timestamp_int, _ := strconv.ParseInt(dataset_last_timestamp[1], 10, 64)
+			if dataset_last_timestamp_int >= timestamp {
+				datasets.WriteString(fmt.Sprintf("'%s',", dataset))
+			}
+		}
+	}
+
+	return datasets.String(), err
+}
+
+func GetHiveDataSetsStr(location string, timestamp ...int64) (string, error) {
+
+	if len(timestamp) == 0 {
+		return getHiveDataSetsStrDefault(location)
+	}
+	return getHiveDataSetsStrFilter(location, timestamp[0])
 }

@@ -8,10 +8,10 @@ import (
 	apiTypes "github.com/ursanmihai/parquet-grafana-api/api/types"
 )
 
-func Main(config apiTypes.APIConfig) {
+func Main(config *apiTypes.APIConfig) {
 	app := fiber.New()
 
-	repo, err := database.Init("duckdb", config.DataSources, config.TempDataSources)
+	repo, err := database.Init("duckdb", config)
 	if err != nil {
 		log.Error("Error while oppening database driver!")
 		return
