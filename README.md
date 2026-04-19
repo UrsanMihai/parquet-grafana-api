@@ -24,11 +24,12 @@ Flags:
 
 Flags:
 
-- -H, --Host string Host to run the server on (default "localhost")
-- -P, --Port string Port to run the server on (default "3000")
+- -H, --Host string Host to run the server on. (default "localhost")
+- -P, --Port string Port to run the server on. (default "3000")
 - -h, --help help for server
-- -f, --parquet_paths strings Path to the parquet data sources.
-- -t, --temp_paths strings Path to the temporary data sources. (Optional)
+- -f, --hive_parquet_location string Path to the directory which contains at least one parquet file with the Hive data schema. (Optional)
+- -s, --simple_parquet_location string Path to the directory which contains at least one parquet file with the simple data schema. (Optional)
+- -t, --use_temporal_filter Whether to optimize queries on hive sets using temporal filtering.
 
 #### How to consume the API:
 
