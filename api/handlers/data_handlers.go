@@ -55,7 +55,7 @@ func GetMultipleColumns() fiber.Handler {
 			}
 
 			if hiveDataSets != "" {
-				queryBuilder.WriteString(fmt.Sprintf("SELECT %s, CAST(%s * %E as UBIGINT) as time FROM read_parquet([%s]) WHERE %s BETWEEN %d AND %d AND device_alias = '%s'", column, timestamp_column, ts_factor, hiveDataSets, timestamp_column, fromTS, toTS, deviceAlias))
+				queryBuilder.WriteString(fmt.Sprintf("SELECT %s, CAST(%s * %E as UBIGINT) as time FROM read_parquet([%s]) WHERE time BETWEEN %d AND %d AND device_alias = '%s'", column, timestamp_column, ts_factor, hiveDataSets, fromTS, toTS, deviceAlias))
 			}
 		}
 
@@ -66,9 +66,9 @@ func GetMultipleColumns() fiber.Handler {
 			if queryBuilder.Len() != 0 {
 				queryBuilder.WriteString(" UNION ")
 			}
-			queryBuilder.WriteString(fmt.Sprintf("SELECT %s, CAST(%s * %E as UBIGINT) as time FROM read_parquet(['%s']) WHERE %s BETWEEN %d AND %d AND device_alias = '%s';", column, timestamp_column, ts_factor, repository.SimpleParquetSource+"/*.parquet", timestamp_column, fromTS, toTS, deviceAlias))
+			queryBuilder.WriteString(fmt.Sprintf("SELECT %s, CAST(%s * %E as UBIGINT) as time FROM read_parquet(['%s']) WHERE time BETWEEN %d AND %d AND device_alias = '%s' ORDER BY time;", column, timestamp_column, ts_factor, repository.SimpleParquetSource+"/*.parquet", fromTS, toTS, deviceAlias))
 		} else {
-			queryBuilder.WriteString(";")
+			queryBuilder.WriteString(" ORDER BY time;")
 		}
 		// Execute the query to read from the data sources and filter based on the provided parameters.
 		query := queryBuilder.String()
@@ -151,7 +151,7 @@ func GetSingleColumn() fiber.Handler {
 			}
 
 			if hiveDataSets != "" {
-				queryBuilder.WriteString(fmt.Sprintf("SELECT %s, CAST(%s * %E as UBIGINT) as time FROM read_parquet([%s]) WHERE %s BETWEEN %d AND %d AND device_alias = '%s'", column, timestamp_column, ts_factor, hiveDataSets, timestamp_column, fromTS, toTS, deviceAlias))
+				queryBuilder.WriteString(fmt.Sprintf("SELECT %s, CAST(%s * %E as UBIGINT) as time FROM read_parquet([%s]) WHERE time BETWEEN %d AND %d AND device_alias = '%s'", column, timestamp_column, ts_factor, hiveDataSets, fromTS, toTS, deviceAlias))
 			}
 		}
 
@@ -161,9 +161,9 @@ func GetSingleColumn() fiber.Handler {
 			if queryBuilder.Len() != 0 {
 				queryBuilder.WriteString(" UNION ")
 			}
-			queryBuilder.WriteString(fmt.Sprintf("SELECT %s, CAST(%s * %E as UBIGINT) as time FROM read_parquet(['%s']) WHERE %s BETWEEN %d AND %d AND device_alias = '%s'", column, timestamp_column, ts_factor, repository.SimpleParquetSource+"/*.parquet", timestamp_column, fromTS, toTS, deviceAlias))
+			queryBuilder.WriteString(fmt.Sprintf("SELECT %s, CAST(%s * %E as UBIGINT) as time FROM read_parquet(['%s']) WHERE time BETWEEN %d AND %d AND device_alias = '%s' ORDER BY time", column, timestamp_column, ts_factor, repository.SimpleParquetSource+"/*.parquet", fromTS, toTS, deviceAlias))
 		} else {
-			queryBuilder.WriteString(";")
+			queryBuilder.WriteString(" ORDER BY time;")
 		}
 		// Execute the query to read from the Parquet file and filter based on the provided parameters.
 		rows, err := db.Query(queryBuilder.String())
